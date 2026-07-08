@@ -4,6 +4,12 @@ A deliberately breakable 3-tier app for demoing how an AI agent (Claude)
 troubleshoots production through HashiCorp Boundary — without a VPN and
 without ever holding long-lived credentials.
 
+![Boundary AI agent troubleshooting demo](img/boundary-agent.gif)
+
+## Architecture Diagram
+
+Refer to this page: https://jessicaahm.github.io/boundary-agent-demo/
+
 ## Stack
 
     browser --> nginx (:8080) --> Flask app (:5000) --> Postgres (:5432)
