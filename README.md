@@ -6,7 +6,7 @@ without ever holding long-lived credentials.
 
 ![Boundary AI agent troubleshooting demo](img/boundary-agent.gif)
 
-## Architecture Diagram
+## Architecture Diagram - The different personas
 
 Refer to this page: https://jessicaahm.github.io/boundary-agent-demo/
 
@@ -82,6 +82,7 @@ On the operator / agent machine, install the Boundary CLI:
 3. Build and start the stack:
 
        docker compose build
+       docker compose up -d
 
    This starts three containers: `demo-nginx` (host port 8080),
    `demo-app` (Flask, built from `app/`), and `demo-db` (Postgres 16,

@@ -9,7 +9,9 @@ commands. All remote commands run over the SAME Boundary SSH tunnel that
 sre_agent opened on 127.0.0.1:SSH_PORT.
 """
 
+import os
 import re
+import shlex
 import socket
 import subprocess
 import time
@@ -163,16 +165,28 @@ def close_owned_tunnel() -> None:
         print("\n[boundary] Boundary session closed.")
 
 
-def ensure_tunnel() -> bool:
+def ensure_tunnel(force: bool = False) -> bool:
     """Ensure the tunnel is up, opening/reconnecting to the registered target.
 
     Called lazily by run_remote right before a command runs — so the session
     is opened only when first needed, not at agent startup. Returns True if a
     listener is up (already, or after opening one); False if it is down and
     could not be established.
+
+    `force=True` tears down the current listener first and opens a fresh one.
+    A Boundary listener can still be accepting TCP on 127.0.0.1:SSH_PORT while
+    the brokered session behind it is dead ("closed by remote host"); in that
+    state boundary_tunnel_up() reports True but commands fail. The retry loop in
+    run_remote passes force=True so a stalled-but-listening tunnel is actually
+    replaced instead of reused.
     """
     global _OWNED_TUNNEL
-    if boundary_tunnel_up():
+    if force:
+        # Only tear down a tunnel we own; if we're reusing someone else's
+        # (e.g. a hand-opened terminal-A tunnel), leave it — we can't safely
+        # kill it, and a fresh open will just reuse it again.
+        close_owned_tunnel()
+    if boundary_tunnel_up() and not force:
         return True
     if not _ACTIVE_TARGET_ID:
         return False
@@ -213,32 +227,82 @@ def run_remote(cmd: str, plan: str = "", *, allow_writes: bool = True) -> str:
         print("    plan:")
         for line in plan.strip().splitlines():
             print(f"      {line}")
-        if input("    approve? [y/N] ").strip().lower() != "y":
+        # Unattended eval/CI runs set BOUNDARY_AUTO_APPROVE=1 to skip the human
+        # gate. The demo default is unchanged: without it, every state-changing
+        # command still requires a human 'y' at the prompt below.
+        if os.environ.get("BOUNDARY_AUTO_APPROVE") == "1":
+            print("    auto-approved (BOUNDARY_AUTO_APPROVE)")
+        elif input("    approve? [y/N] ").strip().lower() != "y":
             return "DENIED by human operator."
 
-    def _ssh():
-        return subprocess.run(
-            # The target is reached through a local Boundary listener on
-            # 127.0.0.1:SSH_PORT, so per-port host-key verification isn't
-            # meaningful (Boundary brokers the target's identity). Skip the
-            # known_hosts cache for this ephemeral port and turn off the
-            # UpdateHostKeys rotation prove, which otherwise emits
-            # "client_global_hostkeys_prove_confirm: ... incorrect signature"
-            # to stderr because the proxied host key can't be verified locally.
-            ["ssh", "-p", SSH_PORT,
-             "-o", "StrictHostKeyChecking=no",
-             "-o", "UserKnownHostsFile=/dev/null",
-             "-o", "UpdateHostKeys=no",
-             "-o", "LogLevel=ERROR",
-             f"{SSH_USER}@127.0.0.1", cmd],
-            capture_output=True, text=True, timeout=30,
-        )
+    # Boundary brokers this session in as an unprivileged user (ubuntu), but the
+    # demo app, its containers, and /app1 are owned by root. So we escalate on
+    # the target with passwordless sudo. `sudo -n` never prompts (an unattended
+    # eval must not block on a password); `bash -lc` preserves pipes, redirects
+    # and globbing; shlex.quote keeps the whole command a single safe argument.
+    remote_cmd = f"sudo -n bash -lc {shlex.quote(cmd)}"
 
-    proc = _ssh()
-    out = (proc.stdout + proc.stderr).strip() or "(no output)"
-    # SSH itself can fail if the tunnel drops between the pre-check and exec.
-    # Reconnect once and retry so a transient drop doesn't surface as an error.
-    if proc.returncode != 0 and "connect to host" in out.lower() and ensure_tunnel():
-        proc = _ssh()
-        out = (proc.stdout + proc.stderr).strip() or "(no output)"
-    return out[:4000]
+    def _ssh():
+        """Run the command over the tunnel once.
+
+        Returns (returncode, output). A hung tunnel surfaces as a
+        subprocess.TimeoutExpired inside subprocess.run; we catch it and report
+        it as a retryable failure (returncode 124, the conventional timeout
+        code) rather than letting it crash the whole run.
+
+        ServerAlive* options make a stalled connection fail fast instead of
+        blocking the full command timeout: the client pings every 5s and gives
+        up after 3 unanswered pings (~15s), so a dead tunnel is detected well
+        before the 30s ceiling.
+        """
+        try:
+            proc = subprocess.run(
+                # The target is reached through a local Boundary listener on
+                # 127.0.0.1:SSH_PORT, so per-port host-key verification isn't
+                # meaningful (Boundary brokers the target's identity). Skip the
+                # known_hosts cache for this ephemeral port and turn off the
+                # UpdateHostKeys rotation prove, which otherwise emits
+                # "client_global_hostkeys_prove_confirm: ... incorrect
+                # signature" to stderr because the proxied host key can't be
+                # verified locally.
+                ["ssh", "-p", SSH_PORT,
+                 "-o", "StrictHostKeyChecking=no",
+                 "-o", "UserKnownHostsFile=/dev/null",
+                 "-o", "UpdateHostKeys=no",
+                 "-o", "LogLevel=ERROR",
+                 "-o", "ServerAliveInterval=5",
+                 "-o", "ServerAliveCountMax=3",
+                 "-o", "ConnectTimeout=10",
+                 f"{SSH_USER}@127.0.0.1", remote_cmd],
+                capture_output=True, text=True, timeout=30,
+            )
+            return proc.returncode, (proc.stdout + proc.stderr).strip()
+        except subprocess.TimeoutExpired as exc:
+            partial = ""
+            for stream in (exc.stdout, exc.stderr):
+                if stream:
+                    partial += stream if isinstance(stream, str) else stream.decode(errors="replace")
+            return 124, (partial.strip() + "\nssh timed out (tunnel likely stalled)").strip()
+
+    # Retry on transient tunnel failures. The Boundary session can drop, hang, or
+    # be closed by the remote mid-run; each is a DIFFERENT symptom (connection
+    # refused, ssh timeout, "closed by remote host", or empty output), so we
+    # detect them broadly and reconnect the tunnel before each retry rather than
+    # only handling "connect to host". A genuine command error (non-empty output,
+    # non-retryable) returns immediately so we don't mask real failures.
+    _RETRYABLE = ("connect to host", "connection refused", "connection reset",
+                  "closed by remote host", "broken pipe", "timed out",
+                  "route to host", "connection closed")
+
+    rc, out = _ssh()
+    for _ in range(2):  # up to 2 reconnect-and-retry attempts after the first try
+        low = out.lower()
+        looks_retryable = rc != 0 and (any(m in low for m in _RETRYABLE) or not out)
+        if not looks_retryable:
+            break
+        print(f"[boundary] transient tunnel failure (rc={rc}); reconnecting and retrying ...")
+        if not ensure_tunnel(force=True):
+            break
+        rc, out = _ssh()
+
+    return (out or "(no output)")[:4000]
