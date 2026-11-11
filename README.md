@@ -1,4 +1,4 @@
-# Boundary + AI agent troubleshooting demo
+# Boundary + Protected Access with coding assistant
 
 A deliberately breakable 3-tier app for demoing how an AI agent (Claude)
 troubleshoots production through HashiCorp Boundary — without a VPN and
@@ -160,4 +160,48 @@ boundary authenticate password -auth-method-id $AUTH_METHOD
 python sre_agent.py
 boundary connect ssh -target-id $TARGET_ID
 
+```
+
+## Boundary MCP
+As of [boundary 1.1 release](https://developer.hashicorp.com/boundary/docs/mcp-server/run)
+
+> Note: For this demo I am using HCP Boundary 1.1. The table contains testing as of Nov 11, please refer to the documentation for the most updated contents.
+
+Before you start you can start the MCP with the following [keywords](https://developer.hashicorp.com/boundary/docs/mcp-server/configuration-reference#keywords):
+
+|keyword|toolset enabled|
+|-------|---------------|
+|`default`|`target`, `sessions`|
+|`read-only`|`All read toolsets (no admin toolsets), including connect in local mode`|
+|`all`|All toolsets, including admin and `connect` in local mode. `connect` is never registered in remote mode.`|
+
+*You can also configure your own toolsets*
+
+Refer to the following [link](https://developer.hashicorp.com/boundary/docs/mcp-server#supported-resources-and-toolsets) for Supported resources and toolsets.
+
+|Supported|default|read-only|all|Sample Prompt|
+|---------|-------|---------|----|------------|
+|Targets  | x | x | x |`how many targets do I have?`|
+|Sessions | x | x | x |
+|Users, groups, managed groups, and roles| - | read-only | x |
+|Accounts and auth methods| - | read-only | x |
+|Scopes| - | read-only | x |
+|Workers| - | read-only | x |
+|Host catalogs, host sets, and hosts| - | read-only | x |
+|Credential stores, credential libraries, and credentials| - | read-only | x |
+|Storage buckets and session recordings| - | read-only | x |
+|Aliases| - | read-only | x |
+|Policies| - | read-only | x |
+
+Expose targets for boundary for this demo
+```sh
+#Get the URL of ngrok
+export KUBE_API_URL="http://01ab-103-11-50-253.ngrok-free.app"
+export KUBERNETES_PORT="51894"
+export BROKERED_KUBE_TOKEN=$(boundary targets authorize-session \
+     -id $KUBE_TARGET_ID \
+     -format json | jq -r '.item | .credentials[] | .secret | .decoded | .service_account_token') \
+     && echo $BROKERED_KUBE_TOKEN
+kubectl config set-context empty && kubectl config use-context empty
+kubectl get pod --insecure-skip-tls-verify --server=$KUBE_API_URL --token=$BROKERED_KUBE_TOKEN
 ```
