@@ -196,6 +196,7 @@ Refer to the following [link](https://developer.hashicorp.com/boundary/docs/mcp-
 |Storage buckets and session recordings| - | read-only | x | `Can you help me look for sessions recording related to a target ttcp_YPVQ1fCZ8v` |
 |Aliases| - | read-only | x | `Do I have any aliases configured` |
 |Policies| - | read-only | x | `Show me the policies`, `draft a rbac matrix for me` |
+
 *This is based on claude code. You can refer to a sample rbac matrix generated in: https://jessicaahm.github.io/boundary-agent-demo/sample-matrix*
 
 ## Configuring a targets with Boundary MCP Server
@@ -276,3 +277,5 @@ Rules:
 - Separate what's configured from what's verified. Grants are not proof
   that a session to a target succeeds.
 ```
+
+*This is based on claude code. You can refer to a sample report generated in: https://jessicaahm.github.io/boundary-agent-demo/sample-report*

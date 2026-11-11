@@ -1,0 +1,958 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Vault &amp; Boundary Access Report</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600&amp;family=Public+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+  :root {
+    --ground:      #F6F7FA;
+    --surface:     #FFFFFF;
+    --ink:         #141922;
+    --ink-soft:    #5B6472;
+    --ink-faint:   #8C94A2;
+    --rule:        #E2E5EB;
+    --rule-strong: #C9CFD9;
+    --accent:      #2065B0;
+    --accent-soft: #E8F0F9;
+
+    --c1: #2065B0;  /* PKI / certificates */
+    --c2: #D2691E;  /* KV / secrets       */
+    --c3: #1A8A6B;  /* database           */
+    --c4: #8E44AD;  /* kubernetes         */
+    --c-none: #C9CFD9;
+
+    --good:     #1A7F4B;
+    --warn:     #A96A08;
+    --critical: #C0392B;
+    --warn-bg:  #FBF2E3;
+    --crit-bg:  #FBEBE8;
+
+    --display: "Newsreader", Georgia, "Times New Roman", serif;
+    --body: "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:      #111419;
+      --surface:     #181C23;
+      --ink:         #E7EAEF;
+      --ink-soft:    #9AA3B1;
+      --ink-faint:   #6C7584;
+      --rule:        #272C35;
+      --rule-strong: #3A414D;
+      --accent:      #5B9BE0;
+      --accent-soft: #1A2634;
+
+      --c1: #4A90D9;
+      --c2: #D1783C;
+      --c3: #1FA183;
+      --c4: #B07EC5;
+      --c-none: #3A414D;
+
+      --good:     #4CAF7D;
+      --warn:     #D4A04A;
+      --critical: #E07A6A;
+      --warn-bg:  #2A2317;
+      --crit-bg:  #2E1C19;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:      #111419;
+    --surface:     #181C23;
+    --ink:         #E7EAEF;
+    --ink-soft:    #9AA3B1;
+    --ink-faint:   #6C7584;
+    --rule:        #272C35;
+    --rule-strong: #3A414D;
+    --accent:      #5B9BE0;
+    --accent-soft: #1A2634;
+
+    --c1: #4A90D9;
+    --c2: #D1783C;
+    --c3: #1FA183;
+    --c4: #B07EC5;
+    --c-none: #3A414D;
+
+    --good:     #4CAF7D;
+    --warn:     #D4A04A;
+    --critical: #E07A6A;
+    --warn-bg:  #2A2317;
+    --crit-bg:  #2E1C19;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 960px;
+    margin: 0 auto;
+    padding-inline: 20px;
+    padding-block: 56px 80px;
+  }
+
+  /* ---------- masthead ---------- */
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 14px;
+  }
+
+  h1 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: clamp(32px, 6vw, 48px);
+    line-height: 1.1;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+    margin: 0 0 16px;
+  }
+
+  .masthead-meta {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-soft);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    padding-bottom: 28px;
+    border-bottom: 2px solid var(--ink);
+  }
+
+  .lead {
+    font-family: var(--display);
+    font-size: clamp(19px, 3vw, 23px);
+    line-height: 1.45;
+    margin: 32px 0 0;
+    max-width: 36em;
+    text-wrap: pretty;
+  }
+
+  /* ---------- figure strip ---------- */
+
+  .strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border-block: 1px solid var(--rule);
+    margin-top: 40px;
+  }
+
+  .strip-cell {
+    background: var(--ground);
+    padding: 18px 4px 20px;
+  }
+
+  .strip-num {
+    font-family: var(--display);
+    font-size: 38px;
+    font-weight: 500;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    display: block;
+  }
+
+  .strip-label {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-top: 9px;
+    display: block;
+  }
+
+  /* ---------- sections ---------- */
+
+  section { margin-top: 64px; }
+
+  .sec-head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--rule-strong);
+    margin-bottom: 26px;
+  }
+
+  .sec-num {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    flex: none;
+  }
+
+  h2 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: clamp(23px, 3.6vw, 29px);
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  h3 {
+    font-family: var(--body);
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin: 44px 0 16px;
+  }
+
+  p { margin: 0 0 16px; max-width: 40em; text-wrap: pretty; }
+  p:last-child { margin-bottom: 0; }
+
+  strong { font-weight: 600; }
+
+  code, .mono {
+    font-family: var(--mono);
+    font-size: 0.875em;
+  }
+
+  code {
+    background: var(--accent-soft);
+    color: var(--ink);
+    padding: 1px 5px;
+    border-radius: 2px;
+    word-break: break-word;
+  }
+
+  /* ---------- figures ---------- */
+
+  figure {
+    margin: 0 0 28px;
+    padding: 24px 0 0;
+    border-top: 1px solid var(--rule);
+  }
+
+  figcaption {
+    font-family: var(--mono);
+    font-size: 11px;
+    line-height: 1.6;
+    color: var(--ink-faint);
+    margin-top: 18px;
+    padding-top: 12px;
+    border-top: 1px solid var(--rule);
+  }
+
+  .fig-title {
+    font-family: var(--body);
+    font-weight: 600;
+    font-size: 16px;
+    margin: 0 0 4px;
+  }
+
+  .fig-sub {
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    margin: 0 0 22px;
+  }
+
+  .scroll-x { overflow-x: auto; }
+
+  /* ---------- donut ---------- */
+
+  .donut-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 36px;
+  }
+
+  .donut { width: 196px; height: 196px; flex: none; }
+
+  .legend {
+    display: grid;
+    gap: 12px;
+    min-width: 190px;
+  }
+
+  .legend-row {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    font-size: 14px;
+  }
+
+  .swatch {
+    width: 13px; height: 13px;
+    border-radius: 2px;
+    flex: none;
+  }
+
+  .legend-val {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------- bar rows ---------- */
+
+  .bars { display: grid; gap: 11px; }
+
+  .bar-row {
+    display: grid;
+    grid-template-columns: minmax(96px, 148px) 1fr auto;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .bar-name {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    text-align: right;
+    color: var(--ink);
+    overflow-wrap: anywhere;
+  }
+
+  .bar-track { min-width: 0; }
+
+  .bar-fill {
+    height: 16px;
+    border-radius: 0 3px 3px 0;
+    min-width: 2px;
+  }
+
+  .bar-zero {
+    height: 16px;
+    border-left: 2px solid var(--c-none);
+  }
+
+  .bar-val {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    min-width: 2ch;
+  }
+
+  .bar-val.muted { color: var(--ink-faint); font-weight: 400; }
+
+  /* ---------- stat tiles ---------- */
+
+  .tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+    gap: 14px;
+  }
+
+  .tile {
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    background: var(--surface);
+    padding: 18px 16px 16px;
+  }
+
+  .tile.lead-tile { border-color: var(--accent); }
+
+  .tile-num {
+    font-family: var(--display);
+    font-size: 40px;
+    font-weight: 500;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    display: block;
+  }
+
+  .tile.lead-tile .tile-num { color: var(--accent); }
+
+  .tile-label { font-size: 13.5px; font-weight: 500; margin-top: 10px; display: block; }
+  .tile-note { font-family: var(--mono); font-size: 11px; color: var(--ink-soft); margin-top: 3px; display: block; }
+
+  /* ---------- tables ---------- */
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 13.5px;
+    min-width: 520px;
+  }
+
+  th, td {
+    text-align: left;
+    padding: 10px 14px 10px 0;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+
+  th {
+    font-family: var(--mono);
+    font-weight: 500;
+    font-size: 10.5px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    border-bottom: 1px solid var(--rule-strong);
+    white-space: nowrap;
+  }
+
+  td.num { font-variant-numeric: tabular-nums; font-family: var(--mono); font-size: 12.5px; white-space: nowrap; }
+
+  tbody tr:last-child td { border-bottom: none; }
+
+  /* ---------- access matrix ---------- */
+
+  .matrix { min-width: 560px; }
+  .matrix th.principal { text-align: center; }
+  .matrix td.cell { text-align: center; padding: 9px 8px; }
+  .matrix td.cap { font-size: 13.5px; padding-right: 20px; }
+  .matrix tr.write-row td { background: var(--warn-bg); }
+
+  .dot {
+    display: inline-block;
+    width: 15px; height: 15px;
+    border-radius: 50%;
+    vertical-align: middle;
+  }
+
+  .dot.yes { background: var(--c1); }
+  .dot.yes.write { background: var(--c2); }
+  .dot.no {
+    width: 9px; height: 9px;
+    border: 1.5px solid var(--c-none);
+    background: none;
+  }
+
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* ---------- status pills ---------- */
+
+  .pill {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    padding: 2px 7px;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+
+  .pill.ok   { background: var(--accent-soft); color: var(--accent); }
+  .pill.warn { background: var(--warn-bg); color: var(--warn); }
+  .pill.crit { background: var(--crit-bg); color: var(--critical); }
+
+  /* ---------- callout ---------- */
+
+  .callout {
+    border-left: 3px solid var(--warn);
+    background: var(--warn-bg);
+    padding: 16px 18px;
+    margin: 0 0 26px;
+    border-radius: 0 3px 3px 0;
+  }
+
+  .callout p { margin: 0; max-width: none; font-size: 14px; }
+
+  /* ---------- findings ---------- */
+
+  .findings { list-style: none; counter-reset: f; padding: 0; margin: 0; display: grid; gap: 22px; }
+
+  .findings li {
+    counter-increment: f;
+    display: grid;
+    grid-template-columns: 30px 1fr;
+    gap: 14px;
+    align-items: start;
+  }
+
+  .findings li::before {
+    content: counter(f, decimal-leading-zero);
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--accent);
+    padding-top: 3px;
+  }
+
+  .findings p { margin: 0; }
+  .f-title { font-weight: 600; }
+
+  /* ---------- timeline svg ---------- */
+
+  .timeline { min-width: 620px; width: 100%; height: auto; }
+  .tl-label { font-family: var(--mono); font-size: 11.5px; fill: var(--ink); }
+  .tl-date  { font-family: var(--mono); font-size: 11px; fill: var(--ink-soft); }
+  .tl-today { font-family: var(--mono); font-size: 10.5px; fill: var(--ink-faint); letter-spacing: 0.08em; }
+
+  footer {
+    margin-top: 72px;
+    padding-top: 22px;
+    border-top: 2px solid var(--ink);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    line-height: 1.75;
+    color: var(--ink-soft);
+  }
+
+  footer p { max-width: 46em; }
+
+  @media (max-width: 560px) {
+    .page { padding-block: 36px 56px; }
+    .strip-num { font-size: 31px; }
+    .bar-row { grid-template-columns: minmax(80px, 110px) 1fr auto; gap: 10px; }
+    .donut-wrap { gap: 24px; }
+  }
+</style>
+
+<div class="page">
+
+  <p class="eyebrow">Read-only inventory</p>
+  <h1>Vault &amp; Boundary Access Report</h1>
+  <div class="masthead-meta">
+    <span>As of 11 Nov 2026</span>
+    <span>·</span>
+    <span>HashiCorp Vault + Boundary</span>
+    <span>·</span>
+    <span>No secret values read</span>
+  </div>
+
+  <p class="lead">Seven secrets engines hold twelve secrets and two certificates. One Boundary identity can do
+  everything, everywhere — and nothing in the estate has ever been rotated.</p>
+
+  <div class="strip">
+    <div class="strip-cell"><span class="strip-num">7</span><span class="strip-label">Engines</span></div>
+    <div class="strip-cell"><span class="strip-num">12</span><span class="strip-label">Secrets</span></div>
+    <div class="strip-cell"><span class="strip-num">2</span><span class="strip-label">Certificates</span></div>
+    <div class="strip-cell"><span class="strip-num">4</span><span class="strip-label">Users</span></div>
+    <div class="strip-cell"><span class="strip-num">9</span><span class="strip-label">Roles</span></div>
+  </div>
+
+  <!-- ===================== 1 ===================== -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">01</span>
+      <h2>Secrets engines</h2>
+    </div>
+
+    <p>Vault has <strong>11 mounts, of which 7 are secrets engines</strong>. The other four — <code>sys/</code>,
+    <code>identity/</code>, <code>cubbyhole/</code> and <code>agent-registry/</code> — Vault mounts for itself and
+    are not yours to manage.</p>
+
+    <figure>
+      <p class="fig-title">Secrets engines by type</p>
+      <p class="fig-sub">3 of 7 are PKI; only the 2 KV engines store secrets at rest.</p>
+      <div class="donut-wrap">
+        <svg class="donut" viewBox="0 0 220 220" role="img" aria-label="Donut chart: 7 secrets engines — 3 PKI, 2 KV, 1 database, 1 kubernetes">
+          <path d="M110 10 A100 100 0 0 1 153.39 200.10 L136.03 164.06 A60 60 0 0 0 110 50 Z" fill="var(--c1)"></path>
+          <path d="M153.39 200.10 A100 100 0 0 1 12.51 132.25 L51.51 123.35 A60 60 0 0 0 136.03 164.06 Z" fill="var(--c2)"></path>
+          <path d="M12.51 132.25 A100 100 0 0 1 31.82 47.65 L63.09 72.59 A60 60 0 0 0 51.51 123.35 Z" fill="var(--c3)"></path>
+          <path d="M31.82 47.65 A100 100 0 0 1 110 10 L110 50 A60 60 0 0 0 63.09 72.59 Z" fill="var(--c4)"></path>
+          <text x="110" y="112" text-anchor="middle" font-family="Newsreader, Georgia, serif" font-size="44" font-weight="500" fill="var(--ink)">7</text>
+          <text x="110" y="132" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" letter-spacing="1.2" fill="var(--ink-soft)">ENGINES</text>
+        </svg>
+        <div class="legend">
+          <div class="legend-row"><span class="swatch" style="background: var(--c1)"></span> PKI <span class="legend-val">3</span></div>
+          <div class="legend-row"><span class="swatch" style="background: var(--c2)"></span> KV <span class="legend-val">2</span></div>
+          <div class="legend-row"><span class="swatch" style="background: var(--c3)"></span> Database <span class="legend-val">1</span></div>
+          <div class="legend-row"><span class="swatch" style="background: var(--c4)"></span> Kubernetes <span class="legend-val">1</span></div>
+        </div>
+      </div>
+      <figcaption>Vault <span class="mono">list_mounts</span> · excludes 4 built-in mounts</figcaption>
+    </figure>
+
+    <div class="scroll-x">
+      <table>
+        <thead>
+          <tr><th>Path</th><th>Type</th><th>Description</th><th>Kind</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>static/</code></td><td class="num">kv (v2)</td><td>Static KV v2 secret store</td><td>Static secrets</td></tr>
+          <tr><td><code>eso-sync/</code></td><td class="num">kv</td><td>—</td><td>Static secrets</td></tr>
+          <tr><td><code>database/</code></td><td class="num">database</td><td>—</td><td>Dynamic credentials</td></tr>
+          <tr><td><code>kubernetes/</code></td><td class="num">kubernetes</td><td>—</td><td>Dynamic credentials</td></tr>
+          <tr><td><code>pki/</code></td><td class="num">pki</td><td>—</td><td>Certificates</td></tr>
+          <tr><td><code>pki2/</code></td><td class="num">pki</td><td>—</td><td>Certificates</td></tr>
+          <tr><td><code>pki-external-ca/</code></td><td class="num">pki-external-ca</td><td>—</td><td>Certificates</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p style="margin-top:20px">The mount listing reports type <code>kv</code> for both KV v1 and v2, so it does not
+    distinguish them: <code>static/</code> is v2 (writes return a version number), while the version of
+    <code>eso-sync/</code> is not visible from the listing. Both <code>pki/</code> and <code>pki2/</code> carry a max
+    lease TTL of 315,360,000 seconds (10 years); every other mount leaves lease TTLs at the default.</p>
+  </section>
+
+  <!-- ===================== 2 ===================== -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">02</span>
+      <h2>Secrets and certificates</h2>
+    </div>
+
+    <p>You hold <strong>12 secrets and 2 certificates</strong>. The secrets sit in the two KV engines; both
+    certificates are in <code>pki/</code>. The other four engines hold nothing — two mint credentials on demand, two
+    were never configured.</p>
+
+    <figure>
+      <p class="fig-title">Stored secrets and certificates, by engine</p>
+      <p class="fig-sub">14 objects in all; 4 of the 7 engines store nothing.</p>
+      <div class="legend" style="grid-auto-flow: column; justify-content: start; gap: 24px; margin-bottom: 22px; min-width:0">
+        <div class="legend-row"><span class="swatch" style="background: var(--c2)"></span> Secrets</div>
+        <div class="legend-row"><span class="swatch" style="background: var(--c1)"></span> Certificates</div>
+        <div class="legend-row"><span class="swatch" style="background: var(--c-none)"></span> None stored</div>
+      </div>
+      <div class="bars">
+        <div class="bar-row"><span class="bar-name">static/</span><span class="bar-track"><span class="bar-fill" style="width:100%; background:var(--c2)"></span></span><span class="bar-val">10</span></div>
+        <div class="bar-row"><span class="bar-name">eso-sync/</span><span class="bar-track"><span class="bar-fill" style="width:20%; background:var(--c2)"></span></span><span class="bar-val">2</span></div>
+        <div class="bar-row"><span class="bar-name">pki/</span><span class="bar-track"><span class="bar-fill" style="width:20%; background:var(--c1)"></span></span><span class="bar-val">2</span></div>
+        <div class="bar-row"><span class="bar-name">pki2/</span><span class="bar-track"><span class="bar-zero"></span></span><span class="bar-val muted">0</span></div>
+        <div class="bar-row"><span class="bar-name">pki-external-ca/</span><span class="bar-track"><span class="bar-zero"></span></span><span class="bar-val muted">0</span></div>
+        <div class="bar-row"><span class="bar-name">database/</span><span class="bar-track"><span class="bar-zero"></span></span><span class="bar-val muted">0</span></div>
+        <div class="bar-row"><span class="bar-name">kubernetes/</span><span class="bar-track"><span class="bar-zero"></span></span><span class="bar-val muted">0</span></div>
+      </div>
+      <figcaption>Vault <span class="mono">list_secrets</span>, <span class="mono">list_pki_issuers</span>,
+      <span class="mono">list_pki_roles</span> · the database and kubernetes engines store nothing by design — they
+      mint credentials per request</figcaption>
+    </figure>
+
+    <div class="scroll-x">
+      <table>
+        <thead><tr><th>Engine</th><th>Stored</th><th>Detail</th></tr></thead>
+        <tbody>
+          <tr><td><code>static/</code></td><td class="num">10 secrets</td><td><code>demo/secret-01</code> … <code>demo/secret-10</code></td></tr>
+          <tr><td><code>eso-sync/</code></td><td class="num">2 secrets</td><td><code>api</code>, <code>db</code></td></tr>
+          <tr><td><code>pki/</code></td><td class="num">2 certificates</td><td><code>ROOTCA</code> plus one expired leaf; 1 role (<code>test</code>)</td></tr>
+          <tr><td><code>pki2/</code></td><td class="num">0</td><td>No issuer, role or certificate</td></tr>
+          <tr><td><code>pki-external-ca/</code></td><td class="num">0</td><td>No issuer, role or certificate</td></tr>
+          <tr><td><code>database/</code></td><td class="num">0</td><td>Issues DB credentials per request</td></tr>
+          <tr><td><code>kubernetes/</code></td><td class="num">0</td><td>Issues service-account tokens per request</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Certificate expiry</h3>
+
+    <p><strong>One of the two certificates has already expired; the other has 147 days left.</strong> Neither is
+    revoked.</p>
+
+    <div class="scroll-x">
+      <table>
+        <thead><tr><th>Certificate</th><th>Serial</th><th>Valid</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>ROOTCA</code> — CN=<code>example.com</code><br><span style="color:var(--ink-soft)">self-signed root CA</span></td>
+            <td class="num">07:b7:92:…:a0:d8:65:50</td>
+            <td class="num">9 Oct 2026 → 7 Apr 2027</td>
+            <td><span class="pill ok">147 days left</span></td>
+          </tr>
+          <tr>
+            <td>CN=<code>test.example.com</code><br><span style="color:var(--ink-soft)">leaf from role <code>test</code></span></td>
+            <td class="num">68:fd:46:…:ea:44:f6:f3</td>
+            <td class="num">23 Oct 2026, 04:25 → 05:26 UTC</td>
+            <td><span class="pill crit">Expired 19 days ago</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout" style="margin-top:26px">
+      <p>The root CA's total lifetime is only <strong>180 days</strong>, very short for a root, and the issuer is set
+      to <code>leaf_not_after_behavior: "err"</code>: once a requested certificate would outlive the CA, Vault refuses
+      to issue it rather than shortening it. Issuance from <code>pki/</code> therefore starts failing well before
+      April 2027.</p>
+    </div>
+
+    <p>The expired leaf was issued for <code>test.example.com</code> (SAN <code>DNS:test.example.com</code>, server and
+    client auth) with a 60-minute lifetime, so it died an hour after issue — a test artifact, not a lapse.</p>
+
+    <h3>Last written and rotated</h3>
+
+    <p><strong>Nothing with a known write date has ever been rotated</strong> — all 12 dated objects are still on their
+    first version.</p>
+
+    <figure>
+      <p class="fig-title">When each secret and certificate was last written</p>
+      <p class="fig-sub">12 of 14 objects have a retrievable write date.</p>
+      <div class="scroll-x">
+        <svg class="timeline" viewBox="0 0 700 212" role="img" aria-label="Timeline: eso-sync pair has no write date; root CA written 9 Oct 2026; leaf 23 Oct 2026; ten static secrets 11 Nov 2026">
+          <line x1="520" y1="18" x2="520" y2="196" stroke="var(--rule-strong)" stroke-width="1.5" stroke-dasharray="4 3"></line>
+          <text x="520" y="12" text-anchor="middle" class="tl-today">TODAY</text>
+
+          <rect x="150" y="26" width="534" height="34" rx="3" fill="var(--rule)" opacity="0.55"></rect>
+          <text x="142" y="48" text-anchor="end" class="tl-label">eso-sync/api, /db (2)</text>
+          <circle cx="172" cy="43" r="6" fill="none" stroke="var(--c-none)" stroke-width="1.5" stroke-dasharray="3 2"></circle>
+          <text x="556" y="48" class="tl-date">no write date</text>
+
+          <text x="142" y="92" text-anchor="end" class="tl-label">ROOTCA certificate (1)</text>
+          <circle cx="172" cy="87" r="7" fill="var(--c1)"></circle>
+          <text x="556" y="92" class="tl-date">9 Oct 2026 · 33d ago</text>
+
+          <text x="142" y="136" text-anchor="end" class="tl-label">test.example.com leaf (1)</text>
+          <circle cx="319" cy="131" r="7" fill="var(--c1)"></circle>
+          <text x="556" y="136" class="tl-date">23 Oct 2026 · 19d ago</text>
+
+          <text x="142" y="180" text-anchor="end" class="tl-label">static/demo secrets (10)</text>
+          <circle cx="520" cy="175" r="7" fill="var(--c2)"></circle>
+          <text x="556" y="180" class="tl-date">11 Nov 2026 · today</text>
+        </svg>
+      </div>
+      <figcaption>Vault write responses and certificate validity dates · the <span class="mono">static/demo</span>
+      timestamps come from this session's own writes, not from Vault metadata</figcaption>
+    </figure>
+
+    <p>The gap is <code>eso-sync/api</code> and <code>eso-sync/db</code>. Their write dates are genuinely unavailable
+    rather than old: KV timestamps live on Vault's metadata endpoint (<code>&lt;mount&gt;/metadata/&lt;path&gt;</code>,
+    which returns <code>created_time</code>, <code>updated_time</code> and <code>current_version</code>), and the Vault
+    MCP server exposes no tool that reaches it — <code>read_secret</code> rewrites every KV v2 path to <code>data/</code>
+    and returns only the value. <code>vault kv metadata get eso-sync/api</code> from the CLI returns those fields. Until
+    then, treat those two as unknown age, not as fresh.</p>
+  </section>
+
+  <!-- ===================== 3 ===================== -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">03</span>
+      <h2>Users</h2>
+    </div>
+
+    <p>Boundary has <strong>4 users, but only 1 is a real identity</strong>. The other three are built-in pseudo-users
+    Boundary creates at initialization to express “anyone”, “anyone logged in” and the recovery workflow. All four live
+    in the global scope; the <code>devops</code> org has none of its own.</p>
+
+    <figure>
+      <p class="fig-title">Boundary identities at a glance</p>
+      <p class="fig-sub">Only <span class="mono">admin</span> holds an account — the other three users are built-in matchers.</p>
+      <div class="tiles">
+        <div class="tile"><span class="tile-num">4</span><span class="tile-label">Users</span><span class="tile-note">in Boundary</span></div>
+        <div class="tile lead-tile"><span class="tile-num">1</span><span class="tile-label">Can log in</span><span class="tile-note">admin only</span></div>
+        <div class="tile"><span class="tile-num">1</span><span class="tile-label">Auth methods</span><span class="tile-note">password</span></div>
+        <div class="tile"><span class="tile-num">0</span><span class="tile-label">Groups</span><span class="tile-note">none anywhere</span></div>
+      </div>
+      <figcaption>Boundary <span class="mono">list_users</span>, <span class="mono">list_accounts</span>,
+      <span class="mono">list_auth_methods</span>, <span class="mono">list_groups</span></figcaption>
+    </figure>
+
+    <div class="scroll-x">
+      <table>
+        <thead><tr><th>User</th><th>ID</th><th>Account</th><th>Kind</th></tr></thead>
+        <tbody>
+          <tr><td><code>admin</code></td><td class="num">u_2TKEf5t2ax</td><td class="num">acctpw_uwO3OSEVaa</td><td>Real person</td></tr>
+          <tr><td><code>anonymous</code></td><td class="num">u_anon</td><td>—</td><td>Built-in: matches every request</td></tr>
+          <tr><td><code>authenticated</code></td><td class="num">u_auth</td><td>—</td><td>Built-in: matches any valid token</td></tr>
+          <tr><td><code>recovery</code></td><td class="num">u_recovery</td><td>—</td><td>Built-in: recovery KMS workflow</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p style="margin-top:20px">Supporting identity configuration is minimal: <strong>1 auth method</strong>
+    (<code>ampw_VwPciyixsN</code>, password, global, primary, 8-character minimum), <strong>1 account</strong> under it,
+    and <strong>0 groups</strong> and <strong>0 managed groups</strong> anywhere. Access therefore runs user-by-user
+    through roles, with no group layer to inherit from.</p>
+
+    <p>Scopes, for context: global → one org <code>devops</code> (<code>o_evm6LNcPVV</code>) → two projects,
+    <code>aws</code> (<code>p_uTDFbaZiLQ</code>, AWS EC2 instances) and <code>kubernetes</code>
+    (<code>p_OMn1NpwlnP</code>, Kubernetes clusters).</p>
+  </section>
+
+  <!-- ===================== 4 ===================== -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">04</span>
+      <h2>What each user can do</h2>
+    </div>
+
+    <p>Access is carried by <strong>9 roles</strong>, and the shape is simple: <code>admin</code> holds unrestricted
+    <code>ids=*;type=*;actions=*</code> across every scope, and the three built-in users hold only login and read-only
+    grants. Nothing sits in between.</p>
+
+    <figure>
+      <p class="fig-title">Capability matrix</p>
+      <p class="fig-sub">Access accumulates downward, and only <span class="mono">admin</span> crosses into writing.</p>
+      <div class="scroll-x">
+        <table class="matrix">
+          <thead>
+            <tr>
+              <th>Capability</th>
+              <th class="principal">anonymous</th>
+              <th class="principal">authenticated</th>
+              <th class="principal">admin</th>
+              <th class="principal">recovery</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="cap">Authenticate</td>
+              <td class="cell"><span class="dot yes"></span><span class="sr">yes</span></td>
+              <td class="cell"><span class="dot yes"></span><span class="sr">yes</span></td>
+              <td class="cell"><span class="dot yes"></span><span class="sr">yes</span></td>
+              <td class="cell"><span class="dot no"></span><span class="sr">no</span></td>
+            </tr>
+            <tr>
+              <td class="cap">List scopes</td>
+              <td class="cell"><span class="dot yes"></span><span class="sr">yes</span></td>
+              <td class="cell"><span class="dot yes"></span><span class="sr">yes</span></td>
+              <td class="cell"><span class="dot yes"></span><span class="sr">yes</span></td>
+              <td class="cell"><span class="dot no"></span><span class="sr">no</span></td>
+            </tr>
+            <tr>
+              <td class="cap">Read own token</td>
+              <td class="cell"><span class="dot yes"></span><span class="sr">yes</span></td>
+              <td class="cell"><span class="dot yes"></span><span class="sr">yes</span></td>
+              <td class="cell"><span class="dot yes"></span><span class="sr">yes</span></td>
+              <td class="cell"><span class="dot no"></span><span class="sr">no</span></td>
+            </tr>
+            <tr>
+              <td class="cap">Read scope details</td>
+              <td class="cell"><span class="dot no"></span><span class="sr">no</span></td>
+              <td class="cell"><span class="dot yes"></span><span class="sr">yes</span></td>
+              <td class="cell"><span class="dot yes"></span><span class="sr">yes</span></td>
+              <td class="cell"><span class="dot no"></span><span class="sr">no</span></td>
+            </tr>
+            <tr>
+              <td class="cap">List and read all targets</td>
+              <td class="cell"><span class="dot no"></span><span class="sr">no</span></td>
+              <td class="cell"><span class="dot yes"></span><span class="sr">yes</span></td>
+              <td class="cell"><span class="dot yes"></span><span class="sr">yes</span></td>
+              <td class="cell"><span class="dot no"></span><span class="sr">no</span></td>
+            </tr>
+            <tr>
+              <td class="cap">Manage own sessions</td>
+              <td class="cell"><span class="dot no"></span><span class="sr">no</span></td>
+              <td class="cell"><span class="dot yes"></span><span class="sr">yes</span></td>
+              <td class="cell"><span class="dot yes"></span><span class="sr">yes</span></td>
+              <td class="cell"><span class="dot no"></span><span class="sr">no</span></td>
+            </tr>
+            <tr>
+              <td class="cap">Change own password</td>
+              <td class="cell"><span class="dot no"></span><span class="sr">no</span></td>
+              <td class="cell"><span class="dot yes"></span><span class="sr">yes</span></td>
+              <td class="cell"><span class="dot yes"></span><span class="sr">yes</span></td>
+              <td class="cell"><span class="dot no"></span><span class="sr">no</span></td>
+            </tr>
+            <tr class="write-row">
+              <td class="cap"><strong>Create, update, delete anything</strong></td>
+              <td class="cell"><span class="dot no"></span><span class="sr">no</span></td>
+              <td class="cell"><span class="dot no"></span><span class="sr">no</span></td>
+              <td class="cell"><span class="dot yes write"></span><span class="sr">yes</span></td>
+              <td class="cell"><span class="dot no"></span><span class="sr">no</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <figcaption>Boundary <span class="mono">read_role</span> on all 9 roles · grants as configured, not a
+      connectivity test · <span class="mono">recovery</span> holds no role grants at all — it acts through the recovery
+      KMS workflow, which bypasses roles</figcaption>
+    </figure>
+
+    <h3>Effective access per user</h3>
+
+    <div class="scroll-x">
+      <table>
+        <thead><tr><th>User</th><th>Roles</th><th>Effective access</th><th>Where</th></tr></thead>
+        <tbody>
+          <tr><td><code>admin</code></td><td class="num">4</td><td>Everything — all actions on all resource types</td><td>Global and all descendants</td></tr>
+          <tr><td><code>authenticated</code></td><td class="num">3</td><td>Read scopes, list and read all targets, list auth tokens, manage own sessions, read and change own password</td><td>Global and all descendants</td></tr>
+          <tr><td><code>anonymous</code></td><td class="num">2</td><td>List scopes, list and authenticate to auth methods, read and delete own token</td><td>Global, descendants, and <code>devops</code></td></tr>
+          <tr><td><code>recovery</code></td><td class="num">0</td><td>None through roles — acts only via the recovery KMS workflow</td><td>n/a</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>The roles behind that</h3>
+
+    <div class="scroll-x">
+      <table>
+        <thead><tr><th>Role</th><th>Scope</th><th>Principal</th><th>Grants</th><th>Applies to</th></tr></thead>
+        <tbody>
+          <tr><td>Administration<br><span class="mono" style="color:var(--ink-soft);font-size:11px">r_bRGZ8SoUFv</span></td><td>global</td><td><code>admin</code></td><td><code>ids=*;type=*;actions=*</code></td><td>this + descendants</td></tr>
+          <tr><td>Authenticated User Grants<br><span class="mono" style="color:var(--ink-soft);font-size:11px">r_6BTgYFRFmb</span></td><td>global</td><td><code>authenticated</code></td><td><code>type=scope;actions=read</code>, <code>type=target;actions=list,read</code>, <code>type=session;actions=list,read:self,cancel:self</code>, <code>type=auth-token;actions=list</code>, own account <code>read,change-password</code></td><td>this + descendants</td></tr>
+          <tr><td>Login Grants<br><span class="mono" style="color:var(--ink-soft);font-size:11px">r_dJboyu4pHs</span></td><td>global</td><td><code>anonymous</code></td><td><code>type=scope;actions=list,no-op</code>, <code>type=auth-method;actions=list,authenticate</code>, <code>type=auth-token;actions=read:self,delete:self</code></td><td>this + descendants</td></tr>
+          <tr><td>Administration<br><span class="mono" style="color:var(--ink-soft);font-size:11px">r_uWWrA5tlS6</span></td><td>org <code>devops</code></td><td><code>admin</code></td><td><code>ids=*;type=*;actions=*</code></td><td>this only</td></tr>
+          <tr><td>Login and Default Grants<br><span class="mono" style="color:var(--ink-soft);font-size:11px">r_urblyGVHws</span></td><td>org <code>devops</code></td><td><code>anonymous</code></td><td><code>type=scope;actions=list,no-op</code>, <code>type=auth-method;actions=authenticate,list</code>, <code>type=auth-token;actions=list,read:self,delete:self</code>, own account <code>read,change-password</code></td><td>this only</td></tr>
+          <tr><td>Administration<br><span class="mono" style="color:var(--ink-soft);font-size:11px">r_Hr1iyt8QPB</span></td><td>project <code>aws</code></td><td><code>admin</code></td><td><code>ids=*;type=*;actions=*</code></td><td>this only</td></tr>
+          <tr><td>Default Grants<br><span class="mono" style="color:var(--ink-soft);font-size:11px">r_djMBm54WD7</span></td><td>project <code>aws</code></td><td><code>authenticated</code></td><td><code>type=target;actions=list</code>, <code>type=session;actions=list,read:self,cancel:self</code></td><td>this only</td></tr>
+          <tr><td>Administration<br><span class="mono" style="color:var(--ink-soft);font-size:11px">r_oa3nQD9vqk</span></td><td>project <code>kubernetes</code></td><td><code>admin</code></td><td><code>ids=*;type=*;actions=*</code></td><td>this only</td></tr>
+          <tr><td>Default Grants<br><span class="mono" style="color:var(--ink-soft);font-size:11px">r_SUv5dMpNNE</span></td><td>project <code>kubernetes</code></td><td><code>authenticated</code></td><td><code>type=target;actions=list</code>, <code>type=session;actions=list,read:self,cancel:self</code></td><td>this only</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p style="margin-top:20px">Two readings to keep straight. Grants scoped <code>this + descendants</code> at global
+    already reach every org and project, so the three scope-level Administration roles grant <code>admin</code> nothing
+    it did not already have. And the account grants read as <code>{{.Account.Id}}</code>, a template that resolves only
+    for the account making the request — so the <code>change-password</code> grant held by <code>anonymous</code> cannot
+    be used without first authenticating as a real account.</p>
+  </section>
+
+  <!-- ===================== observations ===================== -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">—</span>
+      <h2>Observations</h2>
+    </div>
+
+    <p>Six things stand out, in rough order of how much they would matter outside a demo.</p>
+
+    <ol class="findings">
+      <li><p><span class="f-title">One identity holds everything.</span> <code>admin</code> is the only real user and
+      carries <code>actions=*</code> on <code>type=*</code> in every scope. There is no second admin and no separation
+      of duties; the only fallback is the recovery KMS workflow.</p></li>
+
+      <li><p><span class="f-title">Every authenticated user can enumerate all targets.</span>
+      <code>ids=*;type=target;actions=list,read</code> at global with <code>descendants</code> means anyone who logs in
+      sees every target in every scope. It stops short of connecting — no <code>authorize-session</code> grant — so this
+      is enumeration, not access.</p></li>
+
+      <li><p><span class="f-title">The root CA expires 7 April 2027.</span> It will stop issuing usable certificates
+      before that date. Renewing it is the one dated action in this report; clearing the expired test leaf is
+      housekeeping.</p></li>
+
+      <li><p><span class="f-title">No groups.</span> With 0 groups and 0 managed groups, every future user needs roles
+      assigned individually. Adding a second person is the moment to introduce a group.</p></li>
+
+      <li><p><span class="f-title">Three redundant roles.</span> The scope-level Administration roles on
+      <code>devops</code>, <code>aws</code> and <code>kubernetes</code> are fully covered by the global role's
+      <code>descendants</code> grant. They are harmless but they make the access picture look broader than it is.</p></li>
+
+      <li><p><span class="f-title">Two PKI mounts look unfinished.</span> <code>pki2/</code> and
+      <code>pki-external-ca/</code> return no roles, no issuers and no certificates, while <code>pki/</code> has a
+      <code>ROOTCA</code> issuer and a <code>test</code> role. Worth confirming whether the other two are still
+      needed.</p></li>
+    </ol>
+
+    <p style="margin-top:28px">One more, scoped to this demo: the 10 <code>static/demo/</code> secrets were generated in
+    a terminal session, so their values exist in that scrollback. Fine as demo data; regenerate them server-side if any
+    of those paths ever stand in for something real.</p>
+  </section>
+
+  <footer>
+    <p><strong>How this was gathered.</strong> Read-only calls through the Vault and Boundary MCP servers on 11 November
+    2026: Vault <span class="mono">list_mounts</span>, <span class="mono">list_secrets</span>,
+    <span class="mono">read_secret</span>, <span class="mono">list_pki_roles</span>,
+    <span class="mono">list_pki_issuers</span>, <span class="mono">read_pki_issuer</span>; Boundary
+    <span class="mono">list_scopes</span>, <span class="mono">list_users</span>,
+    <span class="mono">list_accounts</span>, <span class="mono">list_auth_methods</span>,
+    <span class="mono">list_groups</span>, <span class="mono">list_roles</span>, and
+    <span class="mono">read_role</span> on all 9 roles. No KV secret values are reproduced here.</p>
+
+    <p><strong>Limits.</strong> Everything here is what this token is authorized to see — in Boundary, absence from a
+    listing is not proof of nonexistence. Vault's own user and policy inventory is not covered: the Vault MCP server
+    exposes no tools for auth methods, entities or policies, so “users” above means Boundary users only. KV write
+    timestamps are likewise unavailable through these tools. Grants are reported as configured and are not a test that
+    a session to any target succeeds.</p>
+  </footer>
+
+</div>
+
+</body></html>
