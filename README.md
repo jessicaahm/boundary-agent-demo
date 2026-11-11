@@ -248,8 +248,31 @@ What can Vault MCP Server do?
 
 A sample use case - Reporting: 
 Prompt:
-- `Create a report showing me in visualization diagram such as pie chart
-    1. how many secrets engine I have.
-    2. how many secrets i have in these secret engine`
-    3. how many users I have
-    4. what access does these users have` 
+```
+Build me a Vault and Boundary inventory report as a doc, with visualisations.
+
+Cover:
+1. Secrets engines — how many and of what type, separating the ones I
+   mounted from Vault's built-in mounts.
+2. What's stored in each — KV secrets by path, and every certificate in
+   every PKI mount, including issued leaf certificates and not just the
+   issuers. Per certificate: common name, SANs, serial, issuing CA,
+   valid-from and valid-to, days remaining, revocation status. Flag
+   anything expired or expiring within 90 days.
+3. Secret freshness — last-written date and version count per KV secret
+   from the metadata endpoint (<mount>/metadata/<path>), charted against
+   a 90-day rotation target.
+4. Boundary users — how many, which are real identities versus built-in
+   pseudo-users, and their accounts and auth methods.
+5. What each user can actually do — effective permissions per user, with
+   the roles and grant strings behind them.
+
+Rules:
+- Pick the chart form that fits each cut of data. Don't force everything
+  into pie charts.
+- Every number must come from a read-only call. If a tool can't reach
+  something, say so plainly and give me the CLI command — never infer a
+  value, and never present something this session did as system state.
+- Separate what's configured from what's verified. Grants are not proof
+  that a session to a target succeeds.
+```
