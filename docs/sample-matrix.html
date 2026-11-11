@@ -1,0 +1,757 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Boundary RBAC Matrix</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+  :root {
+    --paper:       #F1F3F7;
+    --surface:     #FFFFFF;
+    --surface-2:   #E7EAF1;
+    --ink:         #14161C;
+    --ink-2:       #474D5C;
+    --ink-3:       #757C8D;
+    --line:        #D3D8E3;
+    --line-strong: #B9C0D0;
+    --accent:      #3B49C4;
+    --accent-ink:  #2A3399;
+    --accent-soft: rgba(59, 73, 196, 0.10);
+    --accent-mid:  rgba(59, 73, 196, 0.20);
+    --ok:          #1E7A51;
+    --ok-soft:     rgba(30, 122, 81, 0.11);
+    --warn:        #87610E;
+    --warn-soft:   rgba(135, 97, 14, 0.12);
+    --crit:        #A5322D;
+    --crit-soft:   rgba(165, 50, 45, 0.11);
+
+    --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --cond: "IBM Plex Sans Condensed", "IBM Plex Sans", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:       #0E1015;
+      --surface:     #161A23;
+      --surface-2:   #1D2230;
+      --ink:         #E7EAF3;
+      --ink-2:       #A6ADC0;
+      --ink-3:       #767D91;
+      --line:        #282E3C;
+      --line-strong: #394154;
+      --accent:      #8E97F5;
+      --accent-ink:  #AEB5FF;
+      --accent-soft: rgba(142, 151, 245, 0.13);
+      --accent-mid:  rgba(142, 151, 245, 0.24);
+      --ok:          #4FBF8B;
+      --ok-soft:     rgba(79, 191, 139, 0.13);
+      --warn:        #D9A647;
+      --warn-soft:   rgba(217, 166, 71, 0.13);
+      --crit:        #E6756E;
+      --crit-soft:   rgba(230, 117, 110, 0.13);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper:       #0E1015;
+    --surface:     #161A23;
+    --surface-2:   #1D2230;
+    --ink:         #E7EAF3;
+    --ink-2:       #A6ADC0;
+    --ink-3:       #767D91;
+    --line:        #282E3C;
+    --line-strong: #394154;
+    --accent:      #8E97F5;
+    --accent-ink:  #AEB5FF;
+    --accent-soft: rgba(142, 151, 245, 0.13);
+    --accent-mid:  rgba(142, 151, 245, 0.24);
+    --ok:          #4FBF8B;
+    --ok-soft:     rgba(79, 191, 139, 0.13);
+    --warn:        #D9A647;
+    --warn-soft:   rgba(217, 166, 71, 0.13);
+    --crit:        #E6756E;
+    --crit-soft:   rgba(230, 117, 110, 0.13);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding-inline: 20px;
+    padding-block: 44px 72px;
+    display: flex;
+    flex-direction: column;
+    gap: 44px;
+  }
+
+  .eyebrow {
+    font-family: var(--cond);
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 0;
+  }
+
+  h1 {
+    font-size: clamp(30px, 5.2vw, 44px);
+    font-weight: 700;
+    letter-spacing: -0.022em;
+    line-height: 1.08;
+    text-wrap: balance;
+    margin: 10px 0 0;
+  }
+
+  .deck {
+    margin: 14px 0 0;
+    max-width: 62ch;
+    font-size: 17px;
+    color: var(--ink-2);
+  }
+
+  h2 {
+    font-size: 21px;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  .sec-note {
+    margin: 6px 0 0;
+    color: var(--ink-2);
+    max-width: 68ch;
+    font-size: 14.5px;
+  }
+
+  section { display: flex; flex-direction: column; gap: 18px; }
+  .sec-head { display: flex; flex-direction: column; }
+
+  code, .mono { font-family: var(--mono); font-size: 0.88em; }
+
+  /* ---- scope rail: the hierarchy is the axis every grant is measured on ---- */
+  .rail {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .scope {
+    flex: 1 1 210px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent-mid);
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .scope-kind {
+    font-family: var(--cond);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ink-3);
+  }
+  .scope-name { font-weight: 600; font-size: 16px; }
+  .scope-id { font-family: var(--mono); font-size: 12px; color: var(--ink-3); }
+
+  /* ---- tables ---- */
+  .scroller {
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    background: var(--surface);
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 14px;
+  }
+  th, td {
+    text-align: left;
+    vertical-align: top;
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--line);
+  }
+  thead th {
+    position: relative;
+    background: var(--surface-2);
+    font-family: var(--cond);
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--ink-2);
+    white-space: nowrap;
+    border-bottom: 1px solid var(--line-strong);
+  }
+  thead th .who {
+    display: block;
+    font-family: var(--mono);
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 11px;
+    color: var(--ink-3);
+    margin-top: 2px;
+  }
+  tbody tr:last-child th, tbody tr:last-child td { border-bottom: 0; }
+  tbody th {
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  tbody th small {
+    display: block;
+    font-weight: 400;
+    color: var(--ink-3);
+    font-size: 12px;
+  }
+
+  #matrix table { min-width: 740px; }
+  #roles table { min-width: 880px; }
+
+  .cell-none { color: var(--ink-3); font-family: var(--mono); }
+  .cell-all  { background: var(--accent-soft); }
+  .cell-part { background: var(--ok-soft); }
+
+  .acts { display: flex; flex-wrap: wrap; gap: 4px; }
+  .act {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    line-height: 1.4;
+    padding: 2px 6px;
+    border: 1px solid var(--line-strong);
+    border-radius: 2px;
+    background: var(--surface);
+    white-space: nowrap;
+  }
+  .act.self { border-color: var(--warn); color: var(--warn); }
+  .act.star { border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  .act.gap  { border-color: var(--crit); color: var(--crit); }
+  .scopenote {
+    display: block;
+    margin-top: 5px;
+    font-family: var(--cond);
+    font-size: 11.5px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    font-size: 13px;
+    color: var(--ink-2);
+    align-items: center;
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .sw { width: 13px; height: 13px; border: 1px solid var(--line-strong); flex: none; }
+
+  .reach {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-2);
+  }
+  .grants { display: flex; flex-direction: column; gap: 3px; }
+  .grants code { white-space: nowrap; }
+  .tag {
+    display: inline-block;
+    font-family: var(--cond);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    padding: 1px 6px;
+    border: 1px solid currentColor;
+    color: var(--ink-3);
+  }
+  .tag.dupe { color: var(--warn); }
+
+  /* ---- findings ---- */
+  .findings { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--line); background: var(--surface); }
+  .finding {
+    display: grid;
+    grid-template-columns: 7px 112px 1fr;
+    gap: 0 16px;
+    padding: 16px 18px 16px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .finding:last-child { border-bottom: 0; }
+  .finding .stripe { background: var(--ink-3); }
+  .finding.crit .stripe { background: var(--crit); }
+  .finding.warn .stripe { background: var(--warn); }
+  .finding .sev {
+    padding-top: 2px;
+    font-family: var(--cond);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ink-3);
+  }
+  .finding.crit .sev { color: var(--crit); }
+  .finding.warn .sev { color: var(--warn); }
+  .finding h3 { margin: 0 0 5px; font-size: 15.5px; font-weight: 600; letter-spacing: -0.01em; }
+  .finding p { margin: 0; color: var(--ink-2); font-size: 14px; max-width: 72ch; }
+
+  @media (max-width: 560px) {
+    .finding { grid-template-columns: 5px 1fr; padding-right: 14px; }
+    .finding .sev { grid-column: 2; padding-top: 0; margin-bottom: 4px; }
+    .finding .body { grid-column: 2; }
+  }
+
+  .fix {
+    border: 1px solid var(--line);
+    border-top: 3px solid var(--accent);
+    background: var(--surface);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .fix ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 7px; color: var(--ink-2); font-size: 14.5px; }
+  .fix strong { color: var(--ink); font-weight: 600; }
+
+  footer {
+    border-top: 1px solid var(--line);
+    padding-top: 16px;
+    color: var(--ink-3);
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  footer code { color: var(--ink-2); }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">HashiCorp Boundary &middot; HCP cluster &middot; read 11 Nov 2026</p>
+    <h1>Boundary RBAC Matrix</h1>
+    <p class="deck">
+      Seven roles, three effective principals, one target. Boundary has no general
+      <em>policy</em> object &mdash; <code>policy</code> covers only session-recording retention, and this
+      cluster has none &mdash; so all authorization is expressed as grant strings on roles. Every cell
+      below is read from <code>grant_strings</code> and <code>grant_scope_ids</code> as they stand now.
+    </p>
+  </header>
+
+  <section>
+    <div class="sec-head">
+      <h2>The scope ladder</h2>
+      <p class="sec-note">
+        A grant reaches a scope only if the role's <code>grant_scope_ids</code> names it &mdash;
+        <code>this</code> for the owning scope, <code>descendants</code> for everything beneath it.
+        This ladder is what "where" means in the matrix.
+      </p>
+    </div>
+    <div class="rail">
+      <div class="scope">
+        <span class="scope-kind">Global</span>
+        <span class="scope-name">global</span>
+        <span class="scope-id">global</span>
+        <span class="scope-id">4 users &middot; 1 auth method &middot; 2 workers</span>
+      </div>
+      <div class="scope">
+        <span class="scope-kind">Org</span>
+        <span class="scope-name">devops</span>
+        <span class="scope-id">o_evm6LNcPVV</span>
+        <span class="scope-id">0 groups &middot; 0 buckets &middot; 0 policies</span>
+      </div>
+      <div class="scope">
+        <span class="scope-kind">Project</span>
+        <span class="scope-name">kubernetes</span>
+        <span class="scope-id">p_OMn1NpwlnP</span>
+        <span class="scope-id">1 target &middot; 1 Vault store &middot; 0 hosts</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="matrix">
+    <div class="sec-head">
+      <h2>Who can do what</h2>
+      <p class="sec-note">
+        Effective actions per resource type, unioned across every role that binds the principal.
+        <code>u_anon</code> matches <em>every</em> request, so its row of grants also applies to signed-in
+        users; <code>u_auth</code> matches any valid token. A non-admin user therefore holds the
+        anonymous column plus the authenticated column.
+      </p>
+    </div>
+
+    <div class="legend">
+      <span><i class="sw" style="background: var(--accent-soft)"></i> all actions</span>
+      <span><i class="sw" style="background: var(--ok-soft)"></i> scoped subset</span>
+      <span><i class="sw" style="background: var(--surface)"></i> no grant</span>
+      <span><i class="act self" style="padding:1px 5px">:self</i> own objects only</span>
+      <span><i class="act gap" style="padding:1px 5px">missing</i> gap worth noting</span>
+    </div>
+
+    <div class="scroller">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Resource type</th>
+            <th scope="col">Anonymous<span class="who">u_anon &mdash; any request</span></th>
+            <th scope="col">Authenticated<span class="who">u_auth &mdash; any valid token</span></th>
+            <th scope="col">Admin<span class="who">u_2TKEf5t2ax</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">scope</th>
+            <td class="cell-part">
+              <div class="acts"><span class="act">list</span><span class="act">no-op</span></div>
+              <span class="scopenote">all three scopes</span>
+            </td>
+            <td class="cell-part">
+              <div class="acts"><span class="act">read</span></div>
+              <span class="scopenote">+ anonymous row</span>
+            </td>
+            <td class="cell-all">
+              <div class="acts"><span class="act star">*</span></div>
+              <span class="scopenote">this + descendants</span>
+            </td>
+          </tr>
+          <tr>
+            <th scope="row">auth-method</th>
+            <td class="cell-part">
+              <div class="acts"><span class="act">list</span><span class="act">authenticate</span></div>
+              <span class="scopenote">all three scopes</span>
+            </td>
+            <td class="cell-part">
+              <div class="acts"><span class="act">list</span><span class="act">authenticate</span></div>
+              <span class="scopenote">via anonymous</span>
+            </td>
+            <td class="cell-all"><div class="acts"><span class="act star">*</span></div></td>
+          </tr>
+          <tr>
+            <th scope="row">auth-token</th>
+            <td class="cell-part">
+              <div class="acts"><span class="act self">read:self</span><span class="act self">delete:self</span></div>
+              <span class="scopenote">+ list in devops only</span>
+            </td>
+            <td class="cell-part">
+              <div class="acts"><span class="act">list</span></div>
+              <span class="scopenote">all three scopes</span>
+            </td>
+            <td class="cell-all"><div class="acts"><span class="act star">*</span></div></td>
+          </tr>
+          <tr>
+            <th scope="row">account <small>own only &mdash; <code>ids={{.Account.Id}}</code></small></th>
+            <td class="cell-part">
+              <div class="acts"><span class="act">read</span><span class="act">change-password</span></div>
+              <span class="scopenote">devops org only</span>
+            </td>
+            <td class="cell-part">
+              <div class="acts"><span class="act">read</span><span class="act">change-password</span></div>
+              <span class="scopenote">all three scopes</span>
+            </td>
+            <td class="cell-all"><div class="acts"><span class="act star">*</span></div></td>
+          </tr>
+          <tr>
+            <th scope="row">target</th>
+            <td class="cell-none">&mdash;</td>
+            <td class="cell-part">
+              <div class="acts"><span class="act">list</span><span class="act">read</span><span class="act gap">no authorize-session</span></div>
+              <span class="scopenote">can see it, cannot connect</span>
+            </td>
+            <td class="cell-all">
+              <div class="acts"><span class="act star">*</span></div>
+              <span class="scopenote">incl. authorize-session</span>
+            </td>
+          </tr>
+          <tr>
+            <th scope="row">session</th>
+            <td class="cell-none">&mdash;</td>
+            <td class="cell-part">
+              <div class="acts"><span class="act">list</span><span class="act self">read:self</span><span class="act self">cancel:self</span></div>
+              <span class="scopenote">all three scopes</span>
+            </td>
+            <td class="cell-all"><div class="acts"><span class="act star">*</span></div></td>
+          </tr>
+          <tr>
+            <th scope="row">user</th>
+            <td class="cell-none">&mdash;</td>
+            <td class="cell-part">
+              <div class="acts"><span class="act self">list-resolvable-aliases</span></div>
+              <span class="scopenote">own user id only</span>
+            </td>
+            <td class="cell-all"><div class="acts"><span class="act star">*</span></div></td>
+          </tr>
+          <tr>
+            <th scope="row">group &middot; role</th>
+            <td class="cell-none">&mdash;</td>
+            <td class="cell-none">&mdash;</td>
+            <td class="cell-all"><div class="acts"><span class="act star">*</span></div></td>
+          </tr>
+          <tr>
+            <th scope="row">host-catalog &middot; host-set &middot; host</th>
+            <td class="cell-none">&mdash;</td>
+            <td class="cell-none">&mdash;</td>
+            <td class="cell-all">
+              <div class="acts"><span class="act star">*</span></div>
+              <span class="scopenote">none exist</span>
+            </td>
+          </tr>
+          <tr>
+            <th scope="row">credential-store &middot; library</th>
+            <td class="cell-none">&mdash;</td>
+            <td class="cell-none">&mdash;</td>
+            <td class="cell-all">
+              <div class="acts"><span class="act star">*</span></div>
+              <span class="scopenote">1 Vault store</span>
+            </td>
+          </tr>
+          <tr>
+            <th scope="row">worker</th>
+            <td class="cell-none">&mdash;</td>
+            <td class="cell-none">&mdash;</td>
+            <td class="cell-all">
+              <div class="acts"><span class="act star">*</span></div>
+              <span class="scopenote">global only</span>
+            </td>
+          </tr>
+          <tr>
+            <th scope="row">storage-bucket &middot; policy &middot; alias</th>
+            <td class="cell-none">&mdash;</td>
+            <td class="cell-none">&mdash;</td>
+            <td class="cell-all">
+              <div class="acts"><span class="act star">*</span></div>
+              <span class="scopenote">none exist</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="sec-note">
+      <code>u_recovery</code> appears in no role at all. It is reachable only through the recovery KMS
+      workflow, which bypasses this matrix entirely and is the one path that cannot be revoked by
+      editing a role.
+    </p>
+  </section>
+
+  <section id="roles">
+    <div class="sec-head">
+      <h2>The seven roles, verbatim</h2>
+      <p class="sec-note">
+        Owning scope decides where the role lives; <code>grant_scope_ids</code> decides where its grants
+        land. All seven were generated by Boundary at bootstrap or at scope creation &mdash; none is
+        hand-written, and all are still at their original version.
+      </p>
+    </div>
+    <div class="scroller">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Role</th>
+            <th scope="col">Owning scope</th>
+            <th scope="col">Reach</th>
+            <th scope="col">Principal</th>
+            <th scope="col">Grant strings</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">Administration<small>r_bRGZ8SoUFv</small></th>
+            <td>global</td>
+            <td class="reach">this + descendants<br><span style="color:var(--ink-3)">all 3 scopes</span></td>
+            <td class="mono">u_2TKEf5t2ax</td>
+            <td class="grants"><code>ids=*;type=*;actions=*</code></td>
+          </tr>
+          <tr>
+            <th scope="row">Authenticated User Grants<small>r_6BTgYFRFmb</small></th>
+            <td>global</td>
+            <td class="reach">this + descendants<br><span style="color:var(--ink-3)">all 3 scopes</span></td>
+            <td class="mono">u_auth</td>
+            <td class="grants">
+              <code>ids=*;type=scope;actions=read</code>
+              <code>ids=*;type=auth-token;actions=list</code>
+              <code>ids={{.Account.Id}};actions=read,change-password</code>
+              <code>ids=*;type=session;actions=list,read:self,cancel:self</code>
+              <code>ids={{.User.Id}};type=user;actions=list-resolvable-aliases</code>
+              <code>ids=*;type=target;actions=list,read</code>
+            </td>
+          </tr>
+          <tr>
+            <th scope="row">Login Grants<small>r_dJboyu4pHs</small></th>
+            <td>global</td>
+            <td class="reach">this + descendants<br><span style="color:var(--ink-3)">all 3 scopes</span></td>
+            <td class="mono">u_anon</td>
+            <td class="grants">
+              <code>ids=*;type=scope;actions=list,no-op</code>
+              <code>ids=*;type=auth-method;actions=list,authenticate</code>
+              <code>ids=*;type=auth-token;actions=read:self,delete:self</code>
+            </td>
+          </tr>
+          <tr>
+            <th scope="row">Administration<small>r_uWWrA5tlS6</small></th>
+            <td>devops <span class="mono" style="color:var(--ink-3)">(org)</span></td>
+            <td class="reach">this only<br><span class="tag dupe">redundant</span></td>
+            <td class="mono">u_2TKEf5t2ax</td>
+            <td class="grants"><code>ids=*;type=*;actions=*</code></td>
+          </tr>
+          <tr>
+            <th scope="row">Login and Default Grants<small>r_urblyGVHws</small></th>
+            <td>devops <span class="mono" style="color:var(--ink-3)">(org)</span></td>
+            <td class="reach">this only<br><span class="tag dupe">near-duplicate</span></td>
+            <td class="mono">u_anon</td>
+            <td class="grants">
+              <code>ids=*;type=scope;actions=list,no-op</code>
+              <code>ids=*;type=auth-method;actions=authenticate,list</code>
+              <code>ids={{.Account.Id}};actions=read,change-password</code>
+              <code>ids=*;type=auth-token;actions=list,read:self,delete:self</code>
+            </td>
+          </tr>
+          <tr>
+            <th scope="row">Administration<small>r_oa3nQD9vqk</small></th>
+            <td>kubernetes <span class="mono" style="color:var(--ink-3)">(project)</span></td>
+            <td class="reach">this only<br><span class="tag dupe">redundant</span></td>
+            <td class="mono">u_2TKEf5t2ax</td>
+            <td class="grants"><code>ids=*;type=*;actions=*</code></td>
+          </tr>
+          <tr>
+            <th scope="row">Default Grants<small>r_SUv5dMpNNE</small></th>
+            <td>kubernetes <span class="mono" style="color:var(--ink-3)">(project)</span></td>
+            <td class="reach">this only</td>
+            <td class="mono">u_auth</td>
+            <td class="grants">
+              <code>ids=*;type=session;actions=list,read:self,cancel:self</code>
+              <code>type=target;actions=list</code>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>What the matrix exposes</h2>
+      <p class="sec-note">Ordered by what would bite first, not by resource.</p>
+    </div>
+    <div class="findings">
+
+      <div class="finding crit">
+        <i class="stripe"></i>
+        <span class="sev">Blocking</span>
+        <div class="body">
+          <h3>Only admin can open a session</h3>
+          <p>
+            No role grants <code>authorize-session</code> on any target. A signed-in non-admin user can
+            <code>list</code> and <code>read</code> <code>kubernetes-api</code> and would see it in the CLI
+            &mdash; then fail at connect time. Delegating access to this cluster is currently impossible
+            without handing over the admin account.
+          </p>
+        </div>
+      </div>
+
+      <div class="finding crit">
+        <i class="stripe"></i>
+        <span class="sev">Single point</span>
+        <div class="body">
+          <h3>One account carries every privilege</h3>
+          <p>
+            Four users exist but only <code>acctpw_uwO3OSEVaa</code> can sign in, and it is the sole
+            principal on all three <em>Administration</em> roles. Lose it and the only way back is the
+            recovery KMS workflow &mdash; which audits as <code>u_recovery</code>, not as a person.
+          </p>
+        </div>
+      </div>
+
+      <div class="finding warn">
+        <i class="stripe"></i>
+        <span class="sev">Scaling</span>
+        <div class="body">
+          <h3>Zero groups, so every grant is user-direct</h3>
+          <p>
+            All seven roles bind a user or a pseudo-user. There is no group and no managed group, so
+            onboarding a second operator means editing role principals rather than adding a member &mdash;
+            and there is no OIDC or LDAP auth method to drive managed groups from.
+          </p>
+        </div>
+      </div>
+
+      <div class="finding warn">
+        <i class="stripe"></i>
+        <span class="sev">Noise</span>
+        <div class="body">
+          <h3>Four of the seven roles are dead weight</h3>
+          <p>
+            The global <em>Administration</em> role already reaches <code>descendants</code>, so the org and
+            project <em>Administration</em> roles grant admin nothing new. The org
+            <em>Login and Default Grants</em> role likewise repeats global <em>Login Grants</em>, adding only
+            <code>auth-token:list</code> inside <code>devops</code>. They are harmless today but they make
+            the real grant surface harder to read.
+          </p>
+        </div>
+      </div>
+
+      <div class="finding">
+        <i class="stripe"></i>
+        <span class="sev">By design</span>
+        <div class="body">
+          <h3>Unauthenticated callers can enumerate scopes and auth methods</h3>
+          <p>
+            <code>u_anon</code> holds <code>scope:list</code> and <code>auth-method:list,authenticate</code>
+            across global and all descendants. This is Boundary's default so that login works before a token
+            exists, but it does mean scope names &mdash; <code>devops</code>, <code>kubernetes</code> &mdash;
+            and the login endpoint are visible pre-auth.
+          </p>
+        </div>
+      </div>
+
+      <div class="finding">
+        <i class="stripe"></i>
+        <span class="sev">Inert</span>
+        <div class="body">
+          <h3>No retention policy, because nothing is recorded</h3>
+          <p>
+            Zero storage policies, zero storage buckets, zero session recordings, and both HCP-managed
+            workers report <code>local_storage_state: not configured</code>. If recording is ever switched on
+            for <code>kubernetes-api</code>, there is no <code>retain_for</code> / <code>delete_after</code>
+            policy attached to govern it.
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Shortest path to a delegable setup</h2>
+    </div>
+    <div class="fix">
+      <ol>
+        <li><strong>Create a group</strong> in <code>o_evm6LNcPVV</code> &mdash; say <code>k8s-operators</code> &mdash; so membership stops being a role edit.</li>
+        <li><strong>Add a role in <code>p_OMn1NpwlnP</code></strong> with <code>grant_scope_ids=["this"]</code> and the one grant that is missing: <code>ids=ttcp_YPVQ1fCZ8v;type=target;actions=authorize-session,read</code>.</li>
+        <li><strong>Bind the group as principal</strong> on that role. The existing <em>Default Grants</em> role already gives those users <code>session:list,read:self,cancel:self</code>, so no second session grant is needed.</li>
+        <li><strong>Add a second admin account</strong> under <code>ampw_VwPciyixsN</code> and put it on the global <em>Administration</em> role, so recovery KMS stops being the only break-glass.</li>
+        <li><strong>Delete the three redundant roles</strong> once a real second principal exists &mdash; not before, since they are the only scope-local admin hooks today.</li>
+      </ol>
+    </div>
+  </section>
+
+  <footer>
+    <span>Read live from the HCP controller on 11 Nov 2026 via the Boundary MCP server &mdash; <code>list_roles</code>, <code>read_role</code>, <code>list_policies</code>, <code>list_users</code>, <code>list_groups</code>, <code>list_targets</code>.</span>
+    <span>Reflects only what the admin token is authorized to see. Grants shown are as stored; template variables such as <code>{{.Account.Id}}</code> resolve per request at evaluation time.</span>
+  </footer>
+
+</div>
+
+</body></html>

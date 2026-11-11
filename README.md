@@ -197,9 +197,12 @@ Refer to the following [link](https://developer.hashicorp.com/boundary/docs/mcp-
 |Aliases| - | read-only | x | `Do I have any aliases configured` |
 |Policies| - | read-only | x | `Show me the policies`, `draft a rbac matrix for me` |
 *This is based on claude code*
+
 ## Configuring a targets with Boundary MCP Server
 > Note: You will need the right permissions.
 
+
+## Configure Local Kubernetes Target (No recording)
 Expose targets for boundary for this demo
 ```sh
 #Get the URL of ngrok
