@@ -175,23 +175,28 @@ Before you start you can start the MCP with the following [keywords](https://dev
 |`read-only`|`All read toolsets (no admin toolsets), including connect in local mode`|
 |`all`|All toolsets, including admin and `connect` in local mode. `connect` is never registered in remote mode.`|
 
-*You can also configure your own toolsets*
+*With the `default` keyword the MCP server do not allow configuration of target. When a request falls outside the enabled toolsets instead of attempting it:*
+
+![Claude explaining the default toolset is read-only](mcp/img/default-permissions.png)
 
 Refer to the following [link](https://developer.hashicorp.com/boundary/docs/mcp-server#supported-resources-and-toolsets) for Supported resources and toolsets.
 
 |Supported|default|read-only|all|Sample Prompt|
 |---------|-------|---------|----|------------|
 |Targets  | x | x | x |`how many targets do I have?`|
-|Sessions | x | x | x |
-|Users, groups, managed groups, and roles| - | read-only | x |
-|Accounts and auth methods| - | read-only | x |
-|Scopes| - | read-only | x |
-|Workers| - | read-only | x |
-|Host catalogs, host sets, and hosts| - | read-only | x |
-|Credential stores, credential libraries, and credentials| - | read-only | x |
-|Storage buckets and session recordings| - | read-only | x |
-|Aliases| - | read-only | x |
-|Policies| - | read-only | x |
+|Sessions | x | x | x |`how many sessions do I have?`, `can you kill all my sessions?`|
+|Users, groups, managed groups, and roles| - | read-only | x |`how many users,groups,roles do I have`,`What permission does role Administration in project kubernetes have`|
+|Accounts and auth methods| - | read-only | x |`How many accounts do I have. Group them by auth methods`|
+|Scopes| - | read-only | x | `List all the scopes I have` |
+|Workers| - | read-only | x | `How many workers do I have` |
+|Host catalogs, host sets, and hosts| - | read-only | x | `Do I have any hosts set, host catalogs and hosts configured?` |
+|Credential stores, credential libraries, and credentials| - | read-only | x | ` Could you list all the credential stores I have` |
+|Storage buckets and session recordings| - | read-only | x | `Can you help me look for sessions recording related to a target ttcp_YPVQ1fCZ8v` |
+|Aliases| - | read-only | x | `Do I have any aliases configured` |
+|Policies| - | read-only | x | `Show me the policies`, `draft a rbac matrix for me` |
+*This is based on claude code*
+## Configuring a targets with Boundary MCP Server
+> Note: You will need the right permissions.
 
 Expose targets for boundary for this demo
 ```sh
