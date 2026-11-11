@@ -249,7 +249,7 @@ What can Vault MCP Server do?
 A sample use case - Reporting: 
 Prompt:
 ```
-Build me a Vault and Boundary inventory report as a doc, with visualisations.
+Build me a Vault and Boundary inventory report as a html, with visualisations.
 
 Cover:
 1. Secrets engines — how many and of what type, separating the ones I
