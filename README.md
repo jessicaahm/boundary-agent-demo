@@ -231,3 +231,25 @@ export BROKERED_KUBE_TOKEN=$(boundary targets authorize-session \
 kubectl config set-context empty && kubectl config use-context empty
 kubectl get pod --insecure-skip-tls-verify --server=$KUBE_API_URL --token=$BROKERED_KUBE_TOKEN
 ```
+
+## HashiCorp Vault MCP Server
+Refer to documentation: https://developer.hashicorp.com/vault/ai/mcp-server
+
+What can Vault MCP Server do?
+- List, Delete, Create mounts in Vault (KV v1, KV v2)
+- List, Delete, Read, Write secrets to KV mounts
+- Enable PKI secrets engine
+- Issue PKI certificate
+- List, Create, Read PKI issuers, roles
+- Delete PKI roles
+- Comprehensive HTTP middleware stack (CORS, logging, Vault context)
+- Session-based Vault client management
+- Structured logging with configurable output
+
+A sample use case - Reporting: 
+Prompt:
+- `Create a report showing me in visualization diagram such as pie chart
+    1. how many secrets engine I have.
+    2. how many secrets i have in these secret engine`
+    3. how many users I have
+    4. what access does these users have` 

@@ -8,4 +8,9 @@
 #   --tools list_targets,read_target,create_target,update_target
 
 #list tools
-./bin/boundary-mcp-server list-tools
+../bin/boundary-mcp-server list-tools
+
+# Configure Vault
+../bin/vault-mcp-server http --transport-port 8081
+# or using make
+make run-http
