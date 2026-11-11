@@ -167,7 +167,9 @@ As of [boundary 1.1 release](https://developer.hashicorp.com/boundary/docs/mcp-s
 
 > Note: For this demo I am using HCP Boundary 1.1. The table contains testing as of Nov 11, please refer to the documentation for the most updated contents.
 
-Before you start you can start the MCP with the following [keywords](https://developer.hashicorp.com/boundary/docs/mcp-server/configuration-reference#keywords):
+Before you start you can start the MCP with the following [keywords](https://developer.hashicorp.com/boundary/docs/mcp-server/configuration-reference#keywords). Make sure you are connected to MCP Server:
+![Connected to MCP](mcp/img/connected.png)
+
 
 |keyword|toolset enabled|
 |-------|---------------|
