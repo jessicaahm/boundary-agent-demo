@@ -196,11 +196,27 @@ Refer to the following [link](https://developer.hashicorp.com/boundary/docs/mcp-
 |Storage buckets and session recordings| - | read-only | x | `Can you help me look for sessions recording related to a target ttcp_YPVQ1fCZ8v` |
 |Aliases| - | read-only | x | `Do I have any aliases configured` |
 |Policies| - | read-only | x | `Show me the policies`, `draft a rbac matrix for me` |
-*This is based on claude code*
+*This is based on claude code. You can refer to a sample rbac matrix generated in: https://jessicaahm.github.io/boundary-agent-demo/sample-matrix*
 
 ## Configuring a targets with Boundary MCP Server
 > Note: You will need the right permissions.
 
+In this example we will configure a ec2 instance target with boundary.
+![EC2 Instance as Target](mcp/img/ec2-instance.png)
+
+Validated that I am login to AWS `aws sts get-caller-identity`
+
+1 EC2 Instance in AWS
+![EC2 Instance as Target](mcp/img/configure-target.png)
+
+Prompt:
+1. `Create a target in boundary for my ec2 instance in ap-southeast-1. The target should use the credential credspk_DIsWsKEViN`
+
+OUTPUT:
+```sh
+Connect with no local key and no username — Boundary injects both:
+boundary connect ssh -target-id tssh_eR18CRZh06
+```
 
 ## Configure Local Kubernetes Target (No recording)
 Expose targets for boundary for this demo
