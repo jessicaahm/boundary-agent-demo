@@ -7,6 +7,15 @@
         "BOUNDARY_TOKEN": "<BOUNDARY_TOKEN>",
         "BOUNDARY_ADDR": "<BOUNDARY_ADDR>"
       }
-    }
+    },
+    "vault": {
+                "url": "http://localhost:8081/mcp",
+                "type" : "http",
+                "headers": {
+                    "VAULT_ADDR": "<VAULT_ADDR>",
+                    "X-Vault-Token": "<VAULT_TOKEN>",
+                    "X-Vault-Namespace": "<VAULT_NAMESPACE>"
+                }
+            }
   }
 }
