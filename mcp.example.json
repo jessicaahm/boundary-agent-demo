@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "boundary": {
+      "type": "http",
+      "url": "http://127.0.0.1:8080",
+      "headers": {
+        "BOUNDARY_TOKEN": "<BOUNDARY_TOKEN>",
+        "BOUNDARY_ADDR": "<BOUNDARY_ADDR>"
+      }
+    }
+  }
+}
